@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AutoClip Studio - YouTube to Vertical Shorts</title>
+    <meta name="description" content="Paste a YouTube URL and automatically generate viral 9:16 vertical shorts with dynamic subtitles. 100% local, zero API costs.">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { 
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    colors: {
+                        dark: { 900: '#0a0a0f', 800: '#12121a', 700: '#1a1a26', 600: '#22222e' },
+                        accent: { DEFAULT: '#a855f7', light: '#c084fc', dark: '#7c3aed' },
+                        gold: '#fbbf24',
+                    },
+                },
+            },
+        };
+    </script>
+    <style>
+        body { background: #0a0a0f; font-family: 'Inter', sans-serif; }
+        
+        .gradient-border {
+            position: relative;
+            background: #12121a;
+            border-radius: 1rem;
+        }
+        .gradient-border::before {
+            content: '';
+            position: absolute;
+            inset: -1px;
+            border-radius: 1rem;
+            background: linear-gradient(135deg, #a855f7, #ec4899, #a855f7);
+            z-index: -1;
+            opacity: 0.5;
+        }
+
+        .glow-input:focus {
+            box-shadow: 0 0 0 2px rgba(168, 85, 247, 0.4), 0 0 30px rgba(168, 85, 247, 0.15);
+        }
+
+        .video-card {
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .video-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 20px 40px rgba(168, 85, 247, 0.15);
+        }
+
+        .status-step { transition: all 0.4s ease; }
+        .status-step.active { color: #a855f7; }
+        .status-step.done { color: #22c55e; }
+
+        video { border-radius: 0.75rem; }
+
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        .terminal-scroll::-webkit-scrollbar { width: 4px; }
+        .terminal-scroll::-webkit-scrollbar-track { background: transparent; }
+        .terminal-scroll::-webkit-scrollbar-thumb { background: rgba(168, 85, 247, 0.3); border-radius: 4px; }
+    </style>
+</head>
+<body class="min-h-screen text-white">
+
+    <!-- Nav -->
+    <nav class="border-b border-white/5 backdrop-blur-xl bg-dark-900/80 sticky top-0 z-50">
+        <div class="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
+            <div class="flex items-center gap-3 cursor-pointer" onclick="resetToHome()">
+                <div class="w-9 h-9 rounded-lg bg-gradient-to-br from-accent to-pink-500 flex items-center justify-center text-lg font-black shadow-lg shadow-accent/20">A</div>
+                <span class="text-xl font-bold tracking-tight">AutoClip <span class="text-accent-light font-medium text-sm">Studio</span></span>
+            </div>
+            <div class="flex items-center gap-6">
+                <a href="#recentJobsSection" class="text-sm text-white/50 hover:text-white transition-colors">Recent Jobs</a>
+                <span class="text-xs text-white/30 hidden sm:block border border-white/10 px-3 py-1 rounded-full bg-white/5">100% Local &bull; Zero API Costs</span>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero -->
+    <section class="max-w-3xl mx-auto px-6 pt-20 pb-12 text-center transition-all duration-500" id="heroSection">
+        <h1 class="text-5xl sm:text-6xl font-black tracking-tight leading-tight mb-4">
+            YouTube to <span class="bg-gradient-to-r from-accent-light to-pink-400 bg-clip-text text-transparent">Viral Shorts</span>
+        </h1>
+        <p class="text-lg text-white/50 max-w-xl mx-auto mb-10">
+            Paste a link. Get perfectly cropped 9:16 clips with AI-powered dynamic subtitles. All processed locally on your machine.
+        </p>
+
+        <!-- Input Form -->
+        <div id="formSection" class="gradient-border p-6 sm:p-8">
+            <div class="flex flex-col sm:flex-row gap-3">
+                <input
+                    id="urlInput"
+                    type="url"
+                    placeholder="https://www.youtube.com/watch?v=..."
+                    class="flex-1 bg-dark-900 border border-white/10 rounded-xl px-5 py-4 text-white placeholder-white/25 focus:outline-none glow-input transition-all text-base font-mono"
+                    autocomplete="off"
+                >
+                <button
+                    id="generateBtn"
+                    onclick="startGeneration()"
+                    class="bg-gradient-to-r from-accent to-pink-500 hover:from-accent-dark hover:to-pink-600 text-white font-bold px-8 py-4 rounded-xl transition-all hover:scale-[1.02] active:scale-95 whitespace-nowrap text-base shadow-lg shadow-accent/20"
+                >
+                    Generate Clips
+                </button>
+            </div>
+
+            <!-- Video Info Display (hidden initially) -->
+            <div id="videoInfoCard" class="hidden mt-4 text-left p-4 rounded-xl bg-dark-800 border border-white/10 flex items-center gap-4 transition-all duration-300">
+                <img id="viThumbnail" class="w-24 h-14 object-cover rounded-md bg-black" src="" alt="Thumbnail">
+                <div class="flex-1 min-w-0">
+                    <h3 id="viTitle" class="text-sm font-semibold text-white truncate">Loading...</h3>
+                    <p id="viChannel" class="text-xs text-white/50 truncate">...</p>
+                </div>
+                <div class="text-right">
+                    <p class="text-xs text-white/40 mb-1">Estimated Time</p>
+                    <p id="viEstimate" class="text-sm font-bold text-accent-light">...</p>
+                </div>
+            </div>
+
+            <!-- Options (collapsible) -->
+            <details class="mt-4 text-left group">
+                <summary class="text-sm text-white/40 cursor-pointer hover:text-white transition-colors flex items-center gap-2 select-none">
+                    <svg class="w-4 h-4 transition-transform group-open:rotate-90" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                    Advanced Options
+                </summary>
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4 pt-4 border-t border-white/5">
+                    <div>
+                        <label class="text-xs text-white/40 block mb-1">Resolution</label>
+                        <select id="resSelect" class="w-full bg-dark-900 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-accent">
+                            <option value="1080">1080p (HD)</option>
+                            <option value="720">720p (Fast)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="text-xs text-white/40 block mb-1">Max Clips</label>
+                        <input id="maxClipsInput" type="number" value="10" min="1" max="50" class="w-full bg-dark-900 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-accent">
+                    </div>
+                </div>
+            </details>
+
+            <!-- Error display -->
+            <div id="errorBox" class="hidden mt-4 bg-red-500/10 border border-red-500/30 rounded-xl px-4 py-3 text-red-400 text-sm"></div>
+        </div>
+    </section>
+
+    <!-- God Mode Progress Section (hidden initially) -->
+    <section id="progressSection" class="hidden max-w-5xl mx-auto px-6 pb-12 transition-all duration-500">
+        <div class="gradient-border p-1 relative overflow-hidden">
+            <div class="absolute -top-32 -right-32 w-64 h-64 bg-accent/20 blur-[80px] rounded-full pointer-events-none"></div>
+            <div class="absolute -bottom-32 -left-32 w-64 h-64 bg-pink-500/20 blur-[80px] rounded-full pointer-events-none"></div>
+            
+            <div class="bg-dark-900 rounded-[15px] p-6 relative z-10 flex flex-col lg:flex-row gap-6">
+                
+                <!-- Left side: Steps and Stats -->
+                <div class="flex-1 space-y-6 flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between mb-6">
+                            <h3 class="text-xl font-bold text-white flex items-center gap-3">
+                                <span class="relative flex h-3 w-3">
+                                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                                    <span class="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+                                </span>
+                                Live Pipeline Status
+                            </h3>
+                            <button onclick="abortJob()" class="text-xs text-red-400 hover:text-red-300 hover:underline hidden" id="abortBtn">Abort</button>
+                        </div>
+
+                        <!-- Status Steps -->
+                        <div class="flex items-center justify-between mb-8 px-2 relative">
+                            <div class="absolute top-1/2 left-0 right-0 h-px bg-white/5 -z-10 -translate-y-1/2"></div>
+                            
+                            <div id="step-downloading" class="status-step flex flex-col items-center gap-2 bg-dark-900 text-white/30 px-2">
+                                <div class="w-8 h-8 rounded-full border-2 border-current bg-dark-900 flex items-center justify-center text-xs font-bold transition-all">1</div>
+                                <span class="text-[10px] font-semibold tracking-wider uppercase">Download</span>
+                            </div>
+                            <div id="step-transcribing" class="status-step flex flex-col items-center gap-2 bg-dark-900 text-white/30 px-2">
+                                <div class="w-8 h-8 rounded-full border-2 border-current bg-dark-900 flex items-center justify-center text-xs font-bold transition-all">2</div>
+                                <span class="text-[10px] font-semibold tracking-wider uppercase">Transcribe</span>
+                            </div>
+                            <div id="step-clipping" class="status-step flex flex-col items-center gap-2 bg-dark-900 text-white/30 px-2">
+                                <div class="w-8 h-8 rounded-full border-2 border-current bg-dark-900 flex items-center justify-center text-xs font-bold transition-all">3</div>
+                                <span class="text-[10px] font-semibold tracking-wider uppercase">Analyze</span>
+                            </div>
+                            <div id="step-rendering" class="status-step flex flex-col items-center gap-2 bg-dark-900 text-white/30 px-2">
+                                <div class="w-8 h-8 rounded-full border-2 border-current bg-dark-900 flex items-center justify-center text-xs font-bold transition-all">4</div>
+                                <span class="text-[10px] font-semibold tracking-wider uppercase">Render</span>
+                            </div>
+                        </div>
+
+                        <!-- Main Progress Bar -->
+                        <div class="mb-6">
+                            <div class="flex justify-between text-xs mb-2">
+                                <span class="text-white/50" id="liveStepName">Initializing...</span>
+                                <span class="text-accent font-mono" id="livePercent">0%</span>
+                            </div>
+                            <div class="bg-dark-800 rounded-full h-2 w-full overflow-hidden border border-white/5 shadow-inner">
+                                <div id="mainProgressBar" class="h-full bg-gradient-to-r from-accent to-pink-500 transition-all duration-300 relative" style="width: 0%">
+                                    <div class="absolute inset-0 bg-white/20 w-full h-full animate-[shimmer_2s_infinite]" style="background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent); transform: skewX(-20deg);"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Stats Grid -->
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="bg-dark-800/50 p-3 rounded-xl border border-white/5 flex flex-col justify-center">
+                            <p class="text-[10px] text-white/40 uppercase tracking-wider mb-1">Current Action</p>
+                            <p id="liveAction" class="text-sm font-semibold text-white truncate" title="Starting up...">Starting up...</p>
+                        </div>
+                        <div class="bg-dark-800/50 p-3 rounded-xl border border-white/5 flex flex-col justify-center">
+                            <p class="text-[10px] text-white/40 uppercase tracking-wider mb-1">Time Remaining</p>
+                            <p id="liveEta" class="text-lg font-mono font-bold text-pink-400">--:--</p>
+                        </div>
+                        <div class="bg-dark-800/50 p-3 rounded-xl border border-white/5 flex flex-col justify-center col-span-2">
+                            <p class="text-[10px] text-white/40 uppercase tracking-wider mb-1">Processing Speed</p>
+                            <p id="liveSpeed" class="text-sm font-mono text-accent-light">Calculating...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right side: Terminal Logs -->
+                <div class="flex-1 bg-[#050508] rounded-xl border border-white/10 p-4 font-mono text-xs flex flex-col h-[380px] shadow-inner relative overflow-hidden group">
+                    <div class="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-[#050508] pointer-events-none z-10 h-full"></div>
+                    <div class="flex items-center gap-2 mb-3 pb-3 border-b border-white/10 relative z-20 bg-[#050508]">
+                        <div class="flex gap-1.5">
+                            <div class="w-3 h-3 rounded-full bg-red-500/80 shadow shadow-red-500/50"></div>
+                            <div class="w-3 h-3 rounded-full bg-yellow-500/80 shadow shadow-yellow-500/50"></div>
+                            <div class="w-3 h-3 rounded-full bg-green-500/80 shadow shadow-green-500/50"></div>
+                        </div>
+                        <span class="text-white/30 ml-2 font-semibold">autoclip ~ system logs</span>
+                    </div>
+                    <div id="terminalLogs" class="flex-1 overflow-y-auto space-y-2 text-green-400/80 terminal-scroll pb-8 relative z-0 pl-1 pr-2">
+                        <div class="text-white/30">System ready. Waiting for task...</div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+    <!-- Results Section (hidden initially) -->
+    <section id="resultsSection" class="hidden max-w-6xl mx-auto px-6 pb-20 mt-12 border-t border-white/5 pt-12">
+        <h2 class="text-3xl font-bold mb-2">Clips Generated!</h2>
+        <p class="text-white/40 mb-8" id="resultsSubtext">Ready to download and share.</p>
+        <div id="videoGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            <!-- Video cards injected here -->
+        </div>
+        <div class="mt-12 text-center">
+            <button onclick="resetToHome()" class="px-6 py-3 bg-white/5 hover:bg-white/10 rounded-xl font-medium transition-colors border border-white/10">Create More Clips</button>
+        </div>
+    </section>
+
+    <!-- Recent Jobs Section -->
+    <section id="recentJobsSection" class="max-w-6xl mx-auto px-6 pb-20 mt-12">
+        <div class="flex items-center justify-between mb-8 border-b border-white/10 pb-4">
+            <h2 class="text-2xl font-bold flex items-center gap-2">
+                <svg class="w-6 h-6 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                Recent Automations
+            </h2>
+            <button onclick="fetchJobs()" class="text-sm px-4 py-2 bg-dark-800 hover:bg-dark-700 rounded-lg border border-white/5 transition-colors flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                Refresh
+            </button>
+        </div>
+        <div id="jobsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <!-- Jobs injected here -->
+            <div class="col-span-full text-center py-12 text-white/30 hidden" id="noJobsMsg">No recent automations found. Start generating clips!</div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="border-t border-white/5 py-8 text-center text-white/20 text-xs mt-auto">
+        AutoClip Studio &bull; Powered by faster-whisper, moviepy, yt-dlp &bull; 100% Local
+    </footer>
+
+<script>
+    let currentJobId = null;
+    let pollInterval = null;
+    const stepOrder = ['downloading', 'transcribing', 'clipping', 'rendering', 'complete'];
+
+    // Load jobs on startup
+    document.addEventListener("DOMContentLoaded", fetchJobs);
+
+    function formatTime(seconds) {
+        if (!seconds || isNaN(seconds) || seconds < 0) return "--:--";
+        if (seconds < 60) return `~${Math.round(seconds)} sec`;
+        const m = Math.floor(seconds / 60);
+        const s = Math.round(seconds % 60);
+        return `${m}m ${s}s`;
+    }
+
+    function resetToHome() {
+        document.getElementById('heroSection').classList.remove('hidden');
+        document.getElementById('progressSection').classList.add('hidden');
+        document.getElementById('resultsSection').classList.add('hidden');
+        document.getElementById('urlInput').value = '';
+        document.getElementById('videoInfoCard').classList.add('hidden');
+        if (pollInterval) {
+            clearInterval(pollInterval);
+            pollInterval = null;
+        }
+        currentJobId = null;
+        fetchJobs();
+    }
+
+    async function startGeneration() {
+        const url = document.getElementById('urlInput').value.trim();
+        const errorBox = document.getElementById('errorBox');
+        errorBox.classList.add('hidden');
+
+        if (!url || (!url.includes('youtube.com') && !url.includes('youtu.be'))) {
+            showError('Please enter a valid YouTube URL.');
+            return;
+        }
+
+        const btn = document.getElementById('generateBtn');
+        btn.disabled = true;
+        btn.textContent = 'Initializing...';
+        btn.classList.add('opacity-50', 'cursor-not-allowed');
+
+        try {
+            const res = await fetch('/api/generate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    url: url,
+                    model: 'large-v3',
+                    resolution: document.getElementById('resSelect').value,
+                    max_clips: parseInt(document.getElementById('maxClipsInput').value) || 10,
+                    duration: 60.0,
+                    viral_threshold: 5.0,
+                }),
+            });
+
+            if (!res.ok) {
+                const data = await res.json();
+                throw new Error(data.detail || 'Server error');
+            }
+
+            const data = await res.json();
+            currentJobId = data.job_id;
+
+            // Transition UI
+            document.getElementById('heroSection').classList.add('hidden');
+            document.getElementById('progressSection').classList.remove('hidden');
+            document.getElementById('resultsSection').classList.add('hidden');
+            
+            // Reset Progress UI
+            resetProgressUI();
+            
+            // Start polling
+            pollInterval = setInterval(pollStatus, 1000); // Poll faster for live feel
+
+            // Refresh recent jobs
+            setTimeout(fetchJobs, 2000);
+
+        } catch (e) {
+            showError(e.message);
+            btn.disabled = false;
+            btn.textContent = 'Generate Clips';
+            btn.classList.remove('opacity-50', 'cursor-not-allowed');
+        }
+    }
+
+    let lastLogsLength = 0;
+
+    async function pollStatus() {
+        if (!currentJobId) return;
+
+        try {
+            const res = await fetch(`/api/status/${currentJobId}`);
+            if (!res.ok) throw new Error('Failed to fetch status');
+
+            const data = await res.json();
+            
+            // Update God Mode UI
+            document.getElementById('liveStepName').textContent = data.current_step_name || 'Processing...';
+            document.getElementById('liveAction').textContent = data.current_action || data.progress_text;
+            document.getElementById('liveAction').title = data.current_action || data.progress_text;
+            
+            const percent = Math.min(100, Math.max(0, data.progress_percent || 0));
+            document.getElementById('livePercent').textContent = percent.toFixed(1) + '%';
+            document.getElementById('mainProgressBar').style.width = percent + '%';
+            
+            document.getElementById('liveEta').textContent = formatTime(data.estimated_time_remaining);
+            document.getElementById('liveSpeed').textContent = data.processing_speed || 'Running...';
+
+            updateSteps(data.status);
+
+            // Update Logs
+            if (data.logs && data.logs.length > lastLogsLength) {
+                const terminal = document.getElementById('terminalLogs');
+                for (let i = lastLogsLength; i < data.logs.length; i++) {
+                    const logEl = document.createElement('div');
+                    logEl.className = 'font-mono whitespace-pre-wrap';
+                    // Colorize time
+                    const match = data.logs[i].match(/^\[(.*?)\] (.*)/);
+                    if (match) {
+                        logEl.innerHTML = `<span class="text-accent/70">[${match[1]}]</span> <span class="text-green-400">${match[2]}</span>`;
+                    } else {
+                        logEl.textContent = data.logs[i];
+                    }
+                    terminal.appendChild(logEl);
+                }
+                lastLogsLength = data.logs.length;
+                // Auto scroll to bottom smoothly
+                terminal.scrollTo({ top: terminal.scrollHeight, behavior: 'smooth' });
+            }
+
+            if (data.status === 'complete') {
+                clearInterval(pollInterval);
+                pollInterval = null;
+                setTimeout(() => {
+                    document.getElementById('progressSection').classList.add('hidden');
+                    showResults(data.clip_details, data.video_info);
+                    fetchJobs(); // Update recent jobs list
+                }, 1500); // Linger for a moment to show 100%
+            } else if (data.status === 'error') {
+                clearInterval(pollInterval);
+                pollInterval = null;
+                alert(`Error: ${data.error}`);
+                resetToHome();
+            }
+        } catch (e) {
+            console.error('Polling error:', e);
+        }
+    }
+
+    function resetProgressUI() {
+        document.getElementById('mainProgressBar').style.width = '0%';
+        document.getElementById('livePercent').textContent = '0%';
+        document.getElementById('liveEta').textContent = '--:--';
+        document.getElementById('liveAction').textContent = 'Initializing pipeline...';
+        document.getElementById('liveSpeed').textContent = '---';
+        document.getElementById('terminalLogs').innerHTML = '<div class="text-white/30 text-xs mb-2">Connection established. Handshake OK.</div>';
+        lastLogsLength = 0;
+        stepOrder.forEach(step => {
+            const el = document.getElementById(`step-${step}`);
+            if(el) {
+                el.classList.remove('active', 'done');
+                el.classList.add('text-white/30');
+                el.querySelector('div').classList.remove('bg-accent', 'border-accent', 'bg-green-500', 'border-green-500', 'text-white');
+                el.querySelector('div').classList.add('border-current', 'bg-dark-900');
+            }
+        });
+    }
+
+    function updateSteps(currentStatus) {
+        const currentIdx = stepOrder.indexOf(currentStatus);
+        stepOrder.forEach((step, idx) => {
+            const el = document.getElementById(`step-${step}`);
+            if (!el) return;
+            const circle = el.querySelector('div');
+            
+            if (idx < currentIdx) {
+                // Done
+                el.classList.remove('text-white/30', 'active');
+                el.classList.add('done');
+                circle.classList.remove('bg-dark-900', 'border-current', 'bg-accent', 'border-accent');
+                circle.classList.add('bg-green-500', 'border-green-500', 'text-white', 'shadow-[0_0_15px_rgba(34,197,94,0.5)]');
+                circle.innerHTML = `<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>`;
+            } else if (idx === currentIdx) {
+                // Active
+                el.classList.remove('text-white/30', 'done');
+                el.classList.add('active');
+                circle.classList.remove('bg-dark-900', 'border-current', 'bg-green-500', 'border-green-500');
+                circle.classList.add('bg-accent', 'border-accent', 'text-white', 'shadow-[0_0_15px_rgba(168,85,247,0.6)]');
+                circle.innerHTML = `<svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>`;
+            } else {
+                // Pending
+                el.classList.remove('active', 'done');
+                el.classList.add('text-white/30');
+                circle.classList.remove('bg-accent', 'border-accent', 'bg-green-500', 'border-green-500', 'text-white', 'shadow-[0_0_15px_rgba(34,197,94,0.5)]', 'shadow-[0_0_15px_rgba(168,85,247,0.6)]');
+                circle.classList.add('bg-dark-900', 'border-current');
+                circle.textContent = idx + 1;
+            }
+        });
+    }
+
+    function showResults(clips, videoInfo) {
+        const section = document.getElementById('resultsSection');
+        section.classList.remove('hidden');
+        section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        
+        if(videoInfo && videoInfo.title) {
+            document.getElementById('resultsSubtext').textContent = `From: ${videoInfo.title}`;
+        }
+        
+        const grid = document.getElementById('videoGrid');
+        grid.innerHTML = '';
+
+        clips.forEach((clip, i) => {
+            const card = document.createElement('div');
+            card.className = 'video-card gradient-border p-4';
+            card.innerHTML = `
+                <div class="relative mb-3 group rounded-xl overflow-hidden shadow-lg shadow-black/50">
+                    <video
+                        controls
+                        preload="metadata"
+                        class="w-full aspect-[9/16] bg-black object-contain"
+                        src="${clip.url}"
+                    ></video>
+                </div>
+                <div class="flex items-center justify-between mb-3">
+                    <span class="text-sm font-bold text-white">Clip ${i + 1}</span>
+                    <span class="text-[10px] px-2 py-1 rounded bg-dark-900 border ${
+                        clip.viral_score >= 8 ? 'border-green-500/50 text-green-400' :
+                        clip.viral_score >= 6 ? 'border-yellow-500/50 text-yellow-400' :
+                        'border-white/10 text-white/50'
+                    } font-bold tracking-wider">VIRAL ${clip.viral_score}</span>
+                </div>
+                <p class="text-[11px] text-white/50 mb-4 line-clamp-2 leading-relaxed" title="${clip.hook}">Hook: "${clip.hook}"</p>
+                <div class="flex items-center gap-2">
+                    <a
+                        href="${clip.url}"
+                        download="${clip.filename}"
+                        class="flex-1 text-center bg-white/5 hover:bg-white/10 border border-white/10 text-white text-xs font-semibold py-2.5 rounded-lg transition-colors flex items-center justify-center gap-2"
+                    >
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                        Save
+                    </a>
+                </div>
+            `;
+            grid.appendChild(card);
+        });
+    }
+
+    // Recent Jobs Fetching
+    async function fetchJobs() {
+        try {
+            const res = await fetch('/api/jobs');
+            if(!res.ok) return;
+            const data = await res.json();
+            const jobs = data.jobs || [];
+            
+            const grid = document.getElementById('jobsGrid');
+            const msg = document.getElementById('noJobsMsg');
+            grid.innerHTML = '';
+            
+            if(jobs.length === 0) {
+                grid.appendChild(msg);
+                msg.classList.remove('hidden');
+                return;
+            }
+            msg.classList.add('hidden');
+            
+            jobs.forEach(job => {
+                const isRunning = job.status !== 'complete' && job.status !== 'error';
+                const card = document.createElement('div');
+                card.className = 'bg-dark-800 rounded-xl border border-white/5 p-4 flex flex-col gap-3 hover:border-white/10 transition-colors cursor-pointer group';
+                
+                // Allow clicking the card to view results or resume progress view
+                if(job.status === 'complete' && job.clips && job.clips.length > 0) {
+                    card.onclick = () => {
+                        document.getElementById('heroSection').classList.add('hidden');
+                        showResults(job.clips, job.video_info);
+                        window.scrollTo({top: 0, behavior: 'smooth'});
+                    };
+                } else if(isRunning) {
+                    card.onclick = () => {
+                        currentJobId = job.job_id;
+                        document.getElementById('heroSection').classList.add('hidden');
+                        document.getElementById('progressSection').classList.remove('hidden');
+                        if(!pollInterval) pollInterval = setInterval(pollStatus, 1000);
+                        window.scrollTo({top: 0, behavior: 'smooth'});
+                    };
+                }
+
+                let thumbHtml = `<div class="w-16 h-16 rounded bg-dark-900 border border-white/5 flex items-center justify-center"><svg class="w-6 h-6 text-white/20" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg></div>`;
+                if(job.video_info && job.video_info.thumbnail) {
+                    thumbHtml = `<img src="${job.video_info.thumbnail}" class="w-16 h-16 rounded object-cover border border-white/5">`;
+                }
+
+                let statusBadge = '';
+                if(isRunning) {
+                    statusBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-accent/20 text-accent-light flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-accent animate-pulse"></span> RUNNING</span>`;
+                } else if(job.status === 'complete') {
+                    statusBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-green-500/20 text-green-400">DONE</span>`;
+                } else {
+                    statusBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-red-500/20 text-red-400">ERROR</span>`;
+                }
+
+                const title = job.video_info ? (job.video_info.title || 'Unknown Video') : 'Processing Video...';
+                
+                const date = new Date(job.created_at * 1000).toLocaleString(undefined, {month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'});
+
+                card.innerHTML = `
+                    <div class="flex items-start justify-between">
+                        ${statusBadge}
+                        <span class="text-[10px] text-white/30 font-mono">${date}</span>
+                    </div>
+                    <div class="flex gap-3 items-center">
+                        ${thumbHtml}
+                        <div class="flex-1 min-w-0">
+                            <h4 class="text-sm font-semibold text-white truncate group-hover:text-accent transition-colors" title="${title}">${title}</h4>
+                            <p class="text-xs text-white/40 mt-1">${job.clip_details ? job.clip_details.length : 0} clips generated</p>
+                        </div>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+            
+        } catch (e) {
+            console.error("Failed to load recent jobs", e);
+        }
+    }
+
+    // Video Info Fetching logic
+    let fetchInfoTimeout = null;
+    document.getElementById('urlInput').addEventListener('input', (e) => {
+        const url = e.target.value.trim();
+        const infoCard = document.getElementById('videoInfoCard');
+        const btn = document.getElementById('generateBtn');
+        
+        if (!url || (!url.includes('youtube.com') && !url.includes('youtu.be'))) {
+            infoCard.classList.add('hidden');
+            btn.disabled = false;
+            btn.textContent = 'Generate Clips';
+            btn.classList.remove('opacity-50', 'cursor-not-allowed');
+            return;
+        }
+
+        infoCard.classList.remove('hidden');
+        document.getElementById('viThumbnail').src = '';
+        document.getElementById('viTitle').textContent = 'Fetching details...';
+        document.getElementById('viChannel').textContent = '';
+        document.getElementById('viEstimate').innerHTML = `<span class="animate-pulse">Calculating...</span>`;
+
+        clearTimeout(fetchInfoTimeout);
+        fetchInfoTimeout = setTimeout(async () => {
+            try {
+                const res = await fetch('/api/video-info', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url })
+                });
+                
+                if (res.ok) {
+                    const data = await res.json();
+                    document.getElementById('viThumbnail').src = data.thumbnail || '';
+                    document.getElementById('viTitle').textContent = data.title;
+                    document.getElementById('viChannel').textContent = data.channel || 'YouTube Video';
+                    document.getElementById('viEstimate').textContent = data.estimated_time;
+                } else {
+                    infoCard.classList.add('hidden');
+                }
+            } catch (err) {
+                console.error("Failed to fetch video info", err);
+                infoCard.classList.add('hidden');
+            }
+        }, 600);
+    });
+</script>
+</body>
+</html>

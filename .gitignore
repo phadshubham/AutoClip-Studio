@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# AutoClip Studio specific
+temp/
+output/
+data/jobs.json
+app/static/output/
+app/temp/
+test_*.mp4
+
+# OS generated files
+.DS_Store
+Thumbs.db
